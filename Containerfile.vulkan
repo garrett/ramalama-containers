@@ -1,0 +1,31 @@
+# Stage 1: Build llama.cpp with Vulkan support
+FROM quay.io/fedora/fedora:44 AS builder
+
+# Copy build scripts
+COPY scripts/build_llama.sh scripts/lib.sh /src/
+WORKDIR /src/
+
+# Make scripts executable
+RUN chmod +x /src/*.sh
+
+# Install build dependencies and build llama.cpp
+RUN ./build_llama.sh vulkan
+
+# Stage 2: Final runtime image
+FROM quay.io/fedora/fedora:44
+
+# Copy installed binaries and libraries from builder using bind mount
+RUN --mount=type=bind,from=builder,source=/tmp/install,target=/tmp/install,relabel=private \
+    cp -a /tmp/install/bin/ /usr/bin/ && \
+    cp -a /tmp/install/lib64/*.so* /usr/lib64/ 2>/dev/null || true && \
+    cp -a /tmp/install/lib/*.so* /usr/lib/ 2>/dev/null || true
+
+# Install runtime dependencies using bind mount to reuse build script
+RUN --mount=type=bind,from=builder,source=/src/build_llama.sh,target=/src/build_llama.sh,relabel=private \
+    chmod +x /src/build_llama.sh && \
+    /src/build_llama.sh vulkan runtime
+
+# Set working directory and default command for flexibility
+WORKDIR /
+ENTRYPOINT []
+CMD ["/bin/bash"]

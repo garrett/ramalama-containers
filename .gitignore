@@ -1,0 +1,18 @@
+# Exclude ramalama reference directory (git submodule or checkout for reference)
+ramalama/
+
+# Build artifacts
+*.log
+*.tar
+*.gz
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
