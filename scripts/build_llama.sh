@@ -14,11 +14,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
 # Configuration
-DEFAULT_LLAMA_CPP_COMMIT="9c600bc"
+DEFAULT_LLAMA_CPP_BRANCH="master"
 
 
 LLAMA_CPP_REPO="${LLAMA_CPP_REPO:-https://github.com/ggml-org/llama.cpp}"
-LLAMA_CPP_COMMIT="${LLAMA_CPP_PULL_REF:-$DEFAULT_LLAMA_CPP_COMMIT}"
+LLAMA_CPP_REF="${LLAMA_CPP_PULL_REF:-$DEFAULT_LLAMA_CPP_BRANCH}"
 
 # Parse arguments
 BACKEND="${1-}"
@@ -92,9 +92,9 @@ install_vulkan_runtime_deps() {
     dnf -y clean all
 }
 
-# Clone llama.cpp at specific commit
+# Clone llama.cpp at specific revision (branch, commit, or tag)
 clone_llama_cpp() {
-    git_clone_specific_commit "$LLAMA_CPP_REPO" "$LLAMA_CPP_COMMIT"
+    git_clone_specific_commit "$LLAMA_CPP_REPO" "$LLAMA_CPP_REF"
 }
 
 # Configure and build llama.cpp
