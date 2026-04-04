@@ -28,9 +28,15 @@ ramalama serve --image localhost/rocm:latest \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-## Multi-GPU Support (ROCm only)
+## Multi-GPU Support
 
-Vulkan automatically selects the correct GPU. For ROCm with multiple AMD GPUs, use `HIP_VISIBLE_DEVICES` to select which GPU to use:
+### Vulkan (iGPU + dGPU)
+
+Vulkan auto-detects and uses the primary GPU (dGPU on systems with both iGPU and dGPU).
+
+### ROCm (AMD GPU only)
+
+For ROCm with multiple AMD GPUs, use `HIP_VISIBLE_DEVICES` to select which GPU to use:
 
 ```bash
 # Select GPU 0
@@ -49,9 +55,13 @@ ramalama serve --image localhost/rocm:latest \
 For coding agents, use lower temperature for more deterministic output:
 
 ```bash
+ramalama serve --image localhost/vulkan:latest \
+    --port 8124 --temp 0.2 --thinking 0 \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
+
 ramalama serve --image localhost/rocm:latest \
     --env "HIP_VISIBLE_DEVICES=0" \
-    --port 8124 --temp 0.2 \
+    --port 8124 --temp 0.2 --thinking 0 \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
@@ -61,7 +71,6 @@ ramalama serve --image localhost/rocm:latest \
 - For complex tasks, keeping thinking enabled may produce higher-quality code
 
 ## Advanced
-
 
 
 ### Custom llama.cpp Version
@@ -82,12 +91,22 @@ ramalama bench --image localhost/vulkan:latest \
 # Benchmark ROCm
 ramalama bench --image localhost/rocm:latest \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
-
-# Benchmark ROCm on specific GPU (multi-GPU setups)
-ramalama bench --image localhost/rocm:latest --env "HIP_VISIBLE_DEVICES=0" \
-    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-**Note:** Use `HIP_VISIBLE_DEVICES` to benchmark specific GPUs on multi-GPU systems.
+**Performance Results (Qwen3.5-27B-IQ4_NL on Ryzen 9 7950X3D + RX 7900 XTX):**
+
+| Backend | pp512 (tokens/s) | tg128 (tokens/s) |
+|---------|------------------|------------------|
+| Vulkan | 874–882 | 42 |
+| ROCm | 1042–1045 | 34–35 |
+
+**What this means:**
+- **pp512 (prompt processing)**: ROCm processes your *input* 18–20% faster. When pasting code files or long prompts, ROCm starts responding sooner and can analyze your code more quickly.
+- **tg128 (token generation)**: Vulkan generates *output* 20–24% faster. During conversations or code generation, Vulkan streams text more quickly.
+
+**Which to choose:**
+- Use **ROCm** for coding tasks where you paste large code files or want faster analysis
+- Use **Vulkan** for conversations or when you prefer faster streaming output
+- For multi-GPU ROCm systems, use `HIP_VISIBLE_DEVICES` to select which GPU to use
 
 The benchmark reports tokens per second, time to first token, and other performance metrics.
