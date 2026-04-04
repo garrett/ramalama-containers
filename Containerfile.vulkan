@@ -1,5 +1,26 @@
+# Stage 0: Install build dependencies (cached layer)
+FROM quay.io/fedora/fedora:44 AS deps
+
+# Install Vulkan build dependencies
+RUN dnf install -y \
+    gcc-c++ \
+    cmake \
+    git \
+    make \
+    ccache \
+    vulkan-loader-devel \
+    vulkan-headers \
+    vulkan-tools \
+    spirv-tools \
+    glslc \
+    glslang && \
+    dnf -y clean all
+
 # Stage 1: Build llama.cpp with Vulkan support
-FROM quay.io/fedora/fedora:44 AS builder
+FROM deps AS builder
+
+# Set environment variable to skip dependency installation
+ENV SKIP_DEPS=1
 
 # Copy build scripts
 COPY scripts/build_llama.sh scripts/lib.sh /src/
@@ -8,7 +29,7 @@ WORKDIR /src/
 # Make scripts executable
 RUN chmod +x /src/*.sh
 
-# Install build dependencies and build llama.cpp
+# Build llama.cpp (dependencies already installed in deps stage)
 RUN ./build_llama.sh vulkan
 
 # Stage 2: Final runtime image

@@ -23,6 +23,7 @@ LLAMA_CPP_COMMIT="${LLAMA_CPP_PULL_REF:-$DEFAULT_LLAMA_CPP_COMMIT}"
 # Parse arguments
 BACKEND="${1-}"
 ACTION="${2-}"
+SKIP_DEPS="${SKIP_DEPS:-}"
 
 if [ -z "$BACKEND" ]; then
     echo "Usage: $0 <rocm|vulkan> [runtime]"
@@ -188,19 +189,21 @@ main() {
         exit 0
     fi
     
-    # Install build dependencies
-    case "$BACKEND" in
-        rocm)
-            install_rocm_build_deps
-            ;;
-        vulkan)
-            install_vulkan_build_deps
-            ;;
-        *)
-            echo "Unknown backend: $BACKEND"
-            exit 1
-            ;;
-    esac
+    # Install build dependencies (unless SKIP_DEPS is set)
+    if [ -z "$SKIP_DEPS" ]; then
+        case "$BACKEND" in
+            rocm)
+                install_rocm_build_deps
+                ;;
+            vulkan)
+                install_vulkan_build_deps
+                ;;
+            *)
+                echo "Unknown backend: $BACKEND"
+                exit 1
+                ;;
+        esac
+    fi
     
     # Clone and build
     clone_llama_cpp
