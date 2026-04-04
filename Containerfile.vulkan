@@ -35,18 +35,18 @@ RUN ./build_llama.sh vulkan
 # Stage 2: Final runtime image
 FROM quay.io/fedora/fedora:44
 
-# Copy installed binaries and libraries from builder using bind mount
-RUN --mount=type=bind,from=builder,source=/tmp/install,target=/tmp/install,relabel=private \
-    cp -a /tmp/install/bin/ /usr/bin/ && \
-    cp -a /tmp/install/lib64/*.so* /usr/lib64/ 2>/dev/null || true && \
-    cp -a /tmp/install/lib/*.so* /usr/lib/ 2>/dev/null || true
+# Copy installed binaries and libraries from builder
+COPY --from=builder /tmp/install/bin/ /usr/bin/
+COPY --from=builder /tmp/install/lib64/ /usr/lib64/
 
-# Install runtime dependencies using bind mount to reuse build script
-RUN --mount=type=bind,from=builder,source=/src/build_llama.sh,target=/src/build_llama.sh,relabel=private \
-    chmod +x /src/build_llama.sh && \
-    /src/build_llama.sh vulkan runtime
+# Install Vulkan runtime dependencies
+RUN dnf install -y --setopt=install_weak_deps=false \
+    vulkan-loader \
+    vulkan-tools \
+    mesa-vulkan-drivers \
+    libgomp && \
+    dnf -y clean all && \
+    ldconfig
 
-# Set working directory and default command for flexibility
+# Set working directory
 WORKDIR /
-ENTRYPOINT []
-CMD ["/bin/bash"]
