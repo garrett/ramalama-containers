@@ -7,24 +7,24 @@ Custom container images for running llama.cpp with ROCm and Vulkan backends.
 ### Build
 
 ```bash
-# ROCm (AMD GPU)
-podman build -f Containerfile.rocm -t localhost/rocm:latest .
-
 # Vulkan (any GPU with Vulkan support)
 podman build -f Containerfile.vulkan -t localhost/vulkan:latest .
+
+# ROCm (AMD GPU only)
+podman build -f Containerfile.rocm -t localhost/rocm:latest .
 ```
 
-**Note:** Vulkan builds are typically faster than ROCm, as ROCm requires more dependencies and compiles for multiple GPU architectures.
+**Note:** Vulkan builds typically complete faster than ROCm builds. ROCm requires more dependencies and compiles for multiple GPU architectures. Runtime performance varies by workload—use the Benchmarking section below to compare on your hardware.
 
 ### Run
 
 ```bash
-# ROCm (AMD GPU)
-ramalama serve --image localhost/rocm:latest \
+# Vulkan (any GPU with Vulkan support)
+ramalama serve --image localhost/vulkan:latest \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 
-# Vulkan
-ramalama serve --image localhost/vulkan:latest \
+# ROCm (AMD GPU only)
+ramalama serve --image localhost/rocm:latest \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
@@ -75,20 +75,19 @@ podman build --build-arg LLAMA_CPP_COMMIT=<commit> -f Containerfile.rocm -t loca
 Compare performance between ROCm and Vulkan backends:
 
 ```bash
+# Benchmark Vulkan
+ramalama bench --image localhost/vulkan:latest \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
+
 # Benchmark ROCm
 ramalama bench --image localhost/rocm:latest \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 
-# Benchmark Vulkan
-ramalama bench --image localhost/vulkan:latest \
+# Benchmark ROCm on specific GPU (multi-GPU setups)
+ramalama bench --image localhost/rocm:latest --env "HIP_VISIBLE_DEVICES=0" \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-For fair comparisons, disable thinking mode:
-
-```bash
-ramalama bench --image localhost/rocm:latest --thinking 0 \
-    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
-```
+**Note:** Use `HIP_VISIBLE_DEVICES` to benchmark specific GPUs on multi-GPU systems.
 
 The benchmark reports tokens per second, time to first token, and other performance metrics.
