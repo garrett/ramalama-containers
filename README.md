@@ -14,80 +14,81 @@ podman build -f Containerfile.rocm -t localhost/rocm:latest .
 podman build -f Containerfile.vulkan -t localhost/vulkan:latest .
 ```
 
-### Use
+**Note:** Vulkan builds are typically faster than ROCm, as ROCm requires more dependencies and compiles for multiple GPU architectures.
+
+### Run
 
 ```bash
-# ROCm
+# ROCm (AMD GPU)
 ramalama serve --image localhost/rocm:latest \
-    --threads 16 --ctx-size 131072 --port 8123 --temp 0.2 \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 
 # Vulkan
 ramalama serve --image localhost/vulkan:latest \
-    --threads 16 --ctx-size 131072 --port 8123 --temp 0.2 \
     huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-## Alternative Names
+## Multi-GPU Support (ROCm only)
+
+Vulkan automatically selects the correct GPU. For ROCm with multiple AMD GPUs, use `HIP_VISIBLE_DEVICES` to select which GPU to use:
 
 ```bash
-podman build -f Containerfile.rocm -t localhost/rocm-llama:latest .
-podman build -f Containerfile.vulkan -t localhost/vulkan-llama:latest .
+# Select GPU 0
+ramalama serve --image localhost/rocm:latest \
+    --env "HIP_VISIBLE_DEVICES=0" \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
+
+# Select GPU 1
+ramalama serve --image localhost/rocm:latest \
+    --env "HIP_VISIBLE_DEVICES=1" \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-## Build Options
+## Coding Agents
 
-### Custom GPU Targets (ROCm only)
+For coding agents, use lower temperature for more deterministic output:
 
 ```bash
-podman build --build-arg GPU_TARGETS="gfx1100,gfx1102" -f Containerfile.rocm -t localhost/rocm:latest .
+ramalama serve --image localhost/rocm:latest \
+    --env "HIP_VISIBLE_DEVICES=0" \
+    --port 8124 --temp 0.2 \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-Default: `gfx1010,gfx1012,gfx1030,gfx1032,gfx1100,gfx1101,gfx1102,gfx1103,gfx1151,gfx1200,gfx1201`
+**Tips:**
+- `--temp 0.2` provides deterministic output for coding; `--temp 0.8` (default) is better for conversation
+- Add `--thinking 0` to disable reasoning output for cleaner, parseable results (useful for automated agents)
+- For complex tasks, keeping thinking enabled may produce higher-quality code
 
-### Custom llama.cpp Commit
+## Advanced
+
+
+
+### Custom llama.cpp Version
 
 ```bash
 podman build --build-arg LLAMA_CPP_COMMIT=<commit> -f Containerfile.rocm -t localhost/rocm:latest .
 ```
 
-### Debug Build
+## Benchmarking
+
+Compare performance between ROCm and Vulkan backends:
 
 ```bash
-podman build --build-arg RAMALAMA_IMAGE_BUILD_DEBUG_MODE=y -f Containerfile.rocm -t localhost/rocm:latest .
+# Benchmark ROCm
+ramalama bench --image localhost/rocm:latest \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
+
+# Benchmark Vulkan
+ramalama bench --image localhost/vulkan:latest \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-## GPU Device Passthrough
-
-If needed, pass GPU devices to the container:
+For fair comparisons, disable thinking mode:
 
 ```bash
-# ROCm
-ramalama serve --image localhost/rocm:latest \
-    --device /dev/kfd --device /dev/dri [model]
-
-# Vulkan
-ramalama serve --image localhost/vulkan:latest \
-    --device /dev/dri [model]
+ramalama bench --image localhost/rocm:latest --thinking 0 \
+    huggingface://unsloth/Qwen3.5-27B-GGUF/Qwen3.5-27B-IQ4_NL.gguf
 ```
 
-## Verification
-
-```bash
-# Check built images
-podman images | grep -E "rocm|vulkan"
-
-# Verify binaries
-podman run --rm localhost/rocm:latest ls /usr/bin/llama-server
-podman run --rm localhost/vulkan:latest ls /usr/bin/llama-server
-```
-
-## Notes
-
-- Containers use Fedora 44 as base
-- llama.cpp is built from source with latest commit by default
-- Multi-stage builds keep runtime images lean
-- Follows Ramalama upstream best practices
-- Uses `--mount=type=bind` for efficient layer usage
-- Fails on CMake warnings for early issue detection
-- ccache enabled for faster rebuilds
+The benchmark reports tokens per second, time to first token, and other performance metrics.
