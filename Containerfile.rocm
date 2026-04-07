@@ -1,56 +1,16 @@
-# Stage 0: Install build dependencies (cached layer)
-FROM quay.io/fedora/fedora:44 AS deps
+FROM quay.io/fedora/fedora:43 AS builder
 
-# Source OS info
-RUN . /etc/os-release && \
-    if [ "$ID" = "fedora" ]; then \
-        dnf update -y && \
-        dnf install -y \
-            rocm-core-devel \
-            hipblas-devel \
-            rocblas-devel \
-            rocm-hip-devel \
-            gcc-c++ \
-            cmake \
-            git \
-            make \
-            ccache && \
-        dnf -y clean all; \
-    fi
-
-# Stage 1: Build llama.cpp with ROCm support
-FROM deps AS builder
-
-# Set environment variable to skip dependency installation
-ENV SKIP_DEPS=1
-
-# Copy build scripts
 COPY scripts/build_llama.sh scripts/lib.sh /src/
 WORKDIR /src/
-
-# Make scripts executable
-RUN chmod +x /src/*.sh
-
-# Build llama.cpp (dependencies already installed in deps stage)
 RUN ./build_llama.sh rocm
 
-# Stage 2: Final runtime image
-FROM quay.io/fedora/fedora:44
+FROM quay.io/fedora/fedora:43
 
-# Copy installed binaries and libraries from builder
-COPY --from=builder /tmp/install/bin/ /usr/bin/
-COPY --from=builder /tmp/install/lib64/ /usr/lib64/
+RUN --mount=type=bind,from=builder,source=/tmp/install,target=/tmp/install,relabel=private \
+    cp -a /tmp/install/bin/ /usr/ && \
+    cp -a /tmp/install/lib64/*.so* /usr/lib64/
 
-# Install ROCm runtime dependencies
-RUN dnf install -y --setopt=install_weak_deps=false \
-    hipblas \
-    rocblas \
-    rocm-hip \
-    rocm-runtime \
-    rocsolver \
-    libgomp && \
-    dnf -y clean all && \
-    ldconfig
+RUN --mount=type=bind,target=/src,relabel=private \
+    /src/scripts/build_llama.sh rocm runtime
 
-# Set working directory
 WORKDIR /

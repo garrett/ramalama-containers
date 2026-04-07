@@ -119,6 +119,15 @@ podman build --build-arg LLAMA_CPP_REF=bc05a6803e48f17e0f2c7a99fce9b50d03882de7 
 
 `LLAMA_CPP_REF` accepts branches, commit hashes, tags, or remote refs.
 
+**Debug builds (for troubleshooting):**
+```bash
+podman build --env RAMALAMA_IMAGE_BUILD_DEBUG_MODE=y \
+    -f Containerfile.rocm \
+    -t localhost/rocm:debug .
+```
+
+Setting `RAMALAMA_IMAGE_BUILD_DEBUG_MODE=y` builds llama.cpp with debug symbols (Debug config), installs debug tools (gdb, strace), and preserves source files in the container for troubleshooting.
+
 ## Benchmarking
 
 ```bash
