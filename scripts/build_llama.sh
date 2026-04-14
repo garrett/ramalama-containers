@@ -50,6 +50,7 @@ dnf_install_mesa() {
         vulkan-headers \
         vulkan-tools \
         spirv-tools \
+        spirv-headers-devel \
         glslc \
         glslang
 }
