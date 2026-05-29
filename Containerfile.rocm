@@ -1,16 +1,27 @@
-FROM quay.io/fedora/fedora:43 AS builder
+FROM quay.io/fedora/fedora:rawhide AS builder
 
-COPY scripts/build_llama.sh scripts/lib.sh /src/
+ARG LLAMA_CPP_PR
+ENV LLAMA_CPP_PR=${LLAMA_CPP_PR}
+
+COPY scripts/build_llama.sh scripts/lib.sh src/chat_template.jinja /src/
 WORKDIR /src/
 RUN ./build_llama.sh rocm
 
-FROM quay.io/fedora/fedora:43
+FROM quay.io/fedora/fedora:rawhide
+
+COPY src/chat_template.jinja /src/
 
 RUN --mount=type=bind,from=builder,source=/tmp/install,target=/tmp/install,relabel=private \
+    --mount=type=bind,from=builder,source=/tmp/llama-templates,target=/tmp/llama-templates,relabel=private \
     cp -a /tmp/install/bin/ /usr/ && \
-    cp -a /tmp/install/lib64/*.so* /usr/lib64/
+    cp -a /tmp/install/lib64/*.so* /usr/lib64/ && \
+    mkdir -p /usr/share/llama.cpp/templates && \
+    cp -a /tmp/llama-templates/* /usr/share/llama.cpp/templates/ && \
+    mkdir -p /custom && \
+    cp /src/chat_template.jinja /custom/chat_template.jinja
 
 RUN --mount=type=bind,target=/src,relabel=private \
-    /src/scripts/build_llama.sh rocm runtime
+    /src/scripts/build_llama.sh rocm runtime && \
+    ldconfig
 
 WORKDIR /

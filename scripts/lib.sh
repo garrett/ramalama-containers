@@ -9,6 +9,11 @@ git_clone_specific_commit() {
     local commit="$2"
     local repo_name="${repo_url##*/}"
 
+    # Resolve PR refs to a commit SHA so shallow clone works cleanly
+    if [[ "$commit" == refs/pull/* ]]; then
+        commit=$(git ls-remote "$repo_url" "$commit" | cut -f1)
+    fi
+
     git clone --depth 1 --revision "$commit" "$repo_url" "$repo_name"
     cd "$repo_name" || return 1
     git submodule update --init --recursive
