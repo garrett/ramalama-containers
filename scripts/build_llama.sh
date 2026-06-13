@@ -8,7 +8,26 @@ source "$SCRIPT_DIR/lib.sh"
 DEFAULT_LLAMA_CPP_BRANCH="master"
 
 LLAMA_CPP_REPO="${LLAMA_CPP_REPO:-https://github.com/ggml-org/llama.cpp}"
-LLAMA_CPP_REF="${LLAMA_CPP_PULL_REF:-$DEFAULT_LLAMA_CPP_BRANCH}"
+
+# Resolve llama.cpp ref:
+#   LLAMA_PR=123          → checkout PR head directly (refs/pull/123/head)
+#   LLAMA_MERGE=123    → clone default branch, merge/rebase PR on top
+#   LLAMA_REF=...    → checkout arbitrary ref directly
+#   (none)                    → use default branch (master)
+# For PR merge: set LLAMA_STRATEGY=merge (default) or rebase
+LLAMA_STRATEGY="${LLAMA_STRATEGY:-merge}"
+
+if [ -n "${LLAMA_MERGE:-}" ]; then
+    # Merge/rebase mode: clone default branch, apply PR on top
+    LLAMA_CPP_REF="refs/pull/${LLAMA_MERGE}/head"
+elif [ -n "${LLAMA_PR:-}" ]; then
+    # Checkout mode: just use the PR head directly
+    LLAMA_CPP_REF="refs/pull/${LLAMA_PR}/head"
+elif [ -n "${LLAMA_REF:-}" ]; then
+    LLAMA_CPP_REF="$LLAMA_REF"
+else
+    LLAMA_CPP_REF="$DEFAULT_LLAMA_CPP_BRANCH"
+fi
 
 BACKEND="${1-}"
 ACTION="${2-}"
@@ -29,6 +48,7 @@ dnf_install_rocm() {
             hipblas-devel \
             rocblas-devel \
             rocm-hip-devel \
+            rocwmma-devel \
             gcc-c++ \
             cmake \
             git \
@@ -58,7 +78,9 @@ dnf_install_mesa() {
 dnf_install_rocm_runtime() {
     dnf install -y --setopt=install_weak_deps=false --exclude "selinux-policy,container-selinux" \
         hipblas \
+        hipblas-devel \
         rocblas \
+        rocblas-devel \
         rocm-hip \
         rocm-runtime \
         rocsolver \
@@ -74,7 +96,7 @@ dnf_install_mesa_runtime() {
 }
 
 clone_llama_cpp() {
-    git_clone_specific_commit "$LLAMA_CPP_REPO" "$LLAMA_CPP_REF"
+    git_clone_specific_commit "$LLAMA_CPP_REPO" "$LLAMA_CPP_REF" "$DEFAULT_LLAMA_CPP_BRANCH"
 }
 
 cmake_steps() {
@@ -93,9 +115,6 @@ cmake_steps() {
         "-DLLAMA_BUILD_EXAMPLES=OFF"
         "-DGGML_BUILD_TESTS=OFF"
         "-DGGML_BUILD_EXAMPLES=OFF"
-        "-DGGML_NATIVE=OFF"
-        "-DGGML_BACKEND_DL=ON"
-        "-DGGML_CPU_ALL_VARIANTS=ON"
         "-DGGML_CMAKE_BUILD_TYPE=Release"
     )
     
@@ -106,7 +125,8 @@ cmake_steps() {
             fi
             cmake_flags+=(
                 "-DGGML_HIP=ON"
-                "-DGPU_TARGETS=${GPU_TARGETS:-gfx1010,gfx1012,gfx1030,gfx1032,gfx1100,gfx1101,gfx1102,gfx1103,gfx1151,gfx1200,gfx1201}"
+                "-DGPU_TARGETS=${GPU_TARGETS:-gfx1030,gfx1100,gfx1101,gfx1102,gfx1150,gfx1151,gfx1200,gfx1201}"
+                "-DGGML_HIP_ROCWMMA_FATTN=ON"
             )
             ;;
         mesa)
@@ -179,6 +199,12 @@ main() {
     
     clone_and_build_llama_cpp
     cleanup
+    
+    # Copy templates (always needed for multi-stage build)
+    if [ -d "llama.cpp/models/templates" ]; then
+        mkdir -p /templates
+        cp -a llama.cpp/models/templates/* /templates/
+    fi
     
     if [ "${RAMALAMA_IMAGE_BUILD_DEBUG_MODE:-}" != "y" ]; then
         cd ..

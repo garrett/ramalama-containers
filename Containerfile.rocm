@@ -1,7 +1,13 @@
 FROM quay.io/fedora/fedora:rawhide AS builder
 
-ARG LLAMA_CPP_PR
-ENV LLAMA_CPP_PR=${LLAMA_CPP_PR}
+ARG LLAMA_PR
+ARG LLAMA_MERGE
+ARG LLAMA_REF
+ARG LLAMA_STRATEGY
+ENV LLAMA_PR=${LLAMA_PR}
+ENV LLAMA_MERGE=${LLAMA_MERGE}
+ENV LLAMA_REF=${LLAMA_REF}
+ENV LLAMA_STRATEGY=${LLAMA_STRATEGY}
 
 COPY scripts/build_llama.sh scripts/lib.sh src/chat_template.jinja /src/
 WORKDIR /src/

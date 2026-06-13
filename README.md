@@ -261,12 +261,16 @@ Run `ramalama bench --image <backend>:latest <model>` with either `vulkan` or `r
 Containers build llama.cpp from `master` by default. Override the source with build args:
 
 ```bash
-# Build from a PR
-podman build --build-arg LLAMA_CPP_PR=20182 \
+# Build from a PR (checkout PR head directly)
+podman build --build-arg LLAMA_PR=20182 \
+    -f Containerfile.vulkan -t localhost/vulkan:pr-20182 .
+
+# Build from a PR merged on top of master (merge on conflict, build fails)
+podman build --build-arg LLAMA_MERGE=20182 \
     -f Containerfile.vulkan -t localhost/vulkan:pr-20182 .
 
 # Build from a specific commit
-podman build --build-arg LLAMA_CPP_PULL_REF=bc05a6803e48f17e0f2c7a99fce9b50d03882de7 \
+podman build --build-arg LLAMA_REF=bc05a6803e48f17e0f2c7a99fce9b50d03882de7 \
     -f Containerfile.rocm -t localhost/rocm:20250607 .
 
 # Debug build
@@ -274,8 +278,10 @@ podman build --env RAMALAMA_IMAGE_BUILD_DEBUG_MODE=y \
     -f Containerfile.rocm -t localhost/rocm:debug .
 ```
 
-- `LLAMA_CPP_PR=<number>` — build from a [llama.cpp pull request](https://github.com/ggml-org/llama.cpp/pulls) (e.g., `20182`)
-- `LLAMA_CPP_PULL_REF` — build from a specific branch, commit hash, tag, or remote ref
+- `LLAMA_PR=<number>` — checkout a [llama.cpp pull request](https://github.com/ggml-org/llama.cpp/pulls) head directly (e.g., `20182`)
+- `LLAMA_MERGE=<number>` — clone `master`, then merge/rebase the PR on top; falls back to PR branch on conflict
+- `LLAMA_REF` — checkout a specific branch, commit hash, tag, or remote ref
+- `LLAMA_STRATEGY=merge|rebase` — control how `LLAMA_MERGE` applies the PR (default: `merge`)
 - `RAMALAMA_IMAGE_BUILD_DEBUG_MODE=y` — enables debug symbols, installs gdb/strace, preserves source
 
 ### Reference
