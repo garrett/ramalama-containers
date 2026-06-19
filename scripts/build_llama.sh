@@ -42,8 +42,9 @@ fi
 
 dnf_install_rocm() {
     if [ "$ID" = "fedora" ]; then
-        dnf update -y
-        dnf install -y \
+        # Remove openssl3-libs so openssl-libs can replace it (they conflict)
+        dnf remove -y openssl3-libs 2>/dev/null || true
+        dnf install -y --allowerasing --exclude "selinux-policy,container-selinux" \
             rocm-core-devel \
             hipblas-devel \
             rocblas-devel \
@@ -53,14 +54,15 @@ dnf_install_rocm() {
             cmake \
             git \
             make \
-            ccache
+            ccache \
+            openssl-devel
     fi
 }
 
 
 
 dnf_install_mesa() {
-    dnf install -y --exclude "selinux-policy,container-selinux" \
+    dnf install -y --allowerasing --exclude "selinux-policy,container-selinux,openssl-libs" \
         gcc-c++ \
         cmake \
         git \
@@ -72,11 +74,12 @@ dnf_install_mesa() {
         spirv-tools \
         spirv-headers-devel \
         glslc \
-        glslang
+        glslang \
+        openssl-devel
 }
 
 dnf_install_rocm_runtime() {
-    dnf install -y --setopt=install_weak_deps=false --exclude "selinux-policy,container-selinux" \
+    dnf install -y --setopt=install_weak_deps=false --exclude "selinux-policy,container-selinux,openssl-libs" \
         hipblas \
         hipblas-devel \
         rocblas \
@@ -88,7 +91,7 @@ dnf_install_rocm_runtime() {
 }
 
 dnf_install_mesa_runtime() {
-    dnf install -y --setopt=install_weak_deps=false --exclude "selinux-policy,container-selinux" \
+    dnf install -y --setopt=install_weak_deps=false --exclude "selinux-policy,container-selinux,openssl-libs" \
         vulkan-loader \
         vulkan-tools \
         mesa-vulkan-drivers \
@@ -194,7 +197,7 @@ main() {
     fi
     
     if [[ "${RAMALAMA_IMAGE_BUILD_DEBUG_MODE:-}" == y ]]; then
-        dnf install -y gdb strace
+        dnf install -y --exclude "openssl-libs" gdb strace
     fi
     
     clone_and_build_llama_cpp
