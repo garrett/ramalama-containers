@@ -22,9 +22,8 @@ RUN --mount=type=bind,from=builder,source=/tmp/install,target=/tmp/install,relab
     mkdir -p /custom && \
     cp /src/chat_template.jinja /custom/chat_template.jinja
 
-
-
 RUN --mount=type=bind,target=/src,relabel=private \
-    /src/scripts/build_llama.sh mesa runtime
+    /src/scripts/build_llama.sh mesa runtime && \
+    ldconfig
 
 WORKDIR /

@@ -265,7 +265,7 @@ Containers build llama.cpp from `master` by default. Override the source with bu
 podman build --build-arg LLAMA_PR=20182 \
     -f Containerfile.vulkan -t localhost/vulkan:pr-20182 .
 
-# Build from a PR merged on top of master (merge on conflict, build fails)
+# Build from a PR merged on top of master (falls back to PR branch on conflict)
 podman build --build-arg LLAMA_MERGE=20182 \
     -f Containerfile.vulkan -t localhost/vulkan:pr-20182 .
 
